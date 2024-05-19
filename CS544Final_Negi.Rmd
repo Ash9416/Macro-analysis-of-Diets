@@ -1,0 +1,485 @@
+---
+title: "Diets and Macros Analysis"
+author: "Ashwati Negi"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    fig_width: 8
+    code_folding: hide
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: true
+---
+
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(fig.width=8, fig.height=4,
+                      echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+
+
+# The Data Set
+
+Eating a healthy and balanced diet is essential for maintaining a healthy and nutritious body. The "ALL DIETS" dataset consists of common recipes across various diets and lists  their macro nutrients or macros (carbohydrate or carbs, protein, and fat). The dataset was retrieved from Kaggle, link available [here.](https://www.kaggle.com/datasets/thedevastator/healthy-diet-recipes-a-comprehensive-dataset)
+
+
+The data set outlines the macros for 5 common DIET plans consumed by a vast majority of the world population. These 5 Diets as described below will be used as one of the categorical data.
+
+**1. Paleo diet:** Paleo diet is a dietary approach inspired by what our hunter-gatherer ancestors are believed to have eaten during the Paleolithic era 10,000 years ago.
+The paleo diet includes whole, unprocessed foods like:meat,fish,eggs,fruits,vegetables.It excludes dairy products,grains,legumes,refined sugars etc.
+
+**2. Dash diet:** This diet claims to be a balanced diet designed to help lower blood pressure. It includes fruits, vegetables, whole grains, and low-fat dairy products. It limits red meat, salt, and added sugars. The diet focuses on eating food that is low on fat.
+
+**3. Keto diet:** The ketogenic diet is a low-carbohydrate, high-fat diet that involves drastically reducing carbohydrate intake and replacing it with fat. This reduction in carbs puts your body into a metabolic state called ketosis. The diet usually has meat recipes and full fat ingredients like cheese and cream. 
+
+**4. Mediterranean diet:** This diet emphasizes fruits, vegetables, whole grains, legumes, fish, and healthy fats, with moderate amounts of poultry and dairy. It has been linked to a number of health benefits, including a reduced risk of heart disease, stroke, and type 2 diabetes.
+
+**5. Vegan diet:** A vegan diet excludes all animal products, including meat, poultry, fish, eggs, dairy products, and honey. It emphasizes plant-based foods such as fruits, vegetables, legumes (beans, lentils, peas), nuts and seeds, whole grains, and plant-based milk alternatives.
+
+The data set has a column containing 19 different Cuisine types that will be used as the second categorical data in the analysis. "world" cuisine will not be considered under analysis.
+
+The 3 Macros columns for carbohydrate or carbs, protein, and fat in each recipe will be used as a numerical data type in the analysis below.
+
+# Analysis
+
+Eating nutritious and healthy food impacts various aspects of our life offering both long term and short term benefits. With the sheer volume of information available online on different diet types, navigating through the latest trends and marketing gimmicks can get overwhelming. Some of these diets promise quick and dramatic weight loss or specific health benefits, but they typically lack scientific evidence and can be unhealthy or unsustainable in the long term. 
+
+## Goal of the Analysis
+
+Goal is to analyze macros distribution across the diets and infer balanced diets available without certain macros nutrients being eliminated.
+
+```{r echo=TRUE}
+# CS544 FINAL PROJECT_Negi
+library(tidyverse)
+library(plotly)
+library(sampling)
+options(scipen = 7)
+
+setwd("~/Library/CloudStorage/OneDrive-Personal/!BU/CS544/Final Project/CS544Final_Negi")
+local.file <- read.csv("All_Diets.csv",header = T,
+colClasses = c("character", "character","character","double", "double", "double","character","character"))
+All.diets<-as_tibble(local.file)
+select(All.diets,Diet=Diet_type,Recipe_name,Cuisine_type,
+       Protein=Protein.g.,Carbs=Carbs.g.,Fat=Fat.g.)->All.diets
+```
+
+## Diet Frequencies
+
+To start exploring the data, here we are looking at the frequencies of the different diet types across the dataset.
+<p style="text-align: center;">**PLOT 1**</p>
+```{r}
+plot.data <- as.data.frame(table(All.diets$Diet))
+plot.data <- plot.data[order(plot.data$Freq),]
+plot.data$Var1 <- factor(plot.data$Var1, levels = plot.data$Var1)
+plot.data |>  plot_ly(x = ~Var1,
+                      y= ~Freq,
+                      type = "bar",
+                      text = plot.data$Freq, textposition = 'auto')|> 
+  layout(xaxis = list(title = "Diet Types"),
+         yaxis = list(title = "Frequencies",range=c(0,2000)),
+         margin = list(b = 100),
+         title = "Distribution of Diet types")
+
+```
+From the barplot we can infer that majority of the recipes are from Mediterranean and Dash diets and may likely be more popular out of the 5 Diets.
+
+## Cuisine types
+
+In this section we look at the frequency distribution of the cuisine types as well as the the distribution of the diet with the cuisine. There are a total of 19 cuisines and 5 Diet types in the data set.
+
+<p style="text-align: center;">**PLOT 2**</p>
+```{r}
+Cuisine.plot<-as.data.frame(table(All.diets$Diet,All.diets$Cuisine_type))
+Cuisine.plot$Var2 <- factor(Cuisine.plot$Var2, levels = as.data.frame(sort(table(All.diets$Cuisine_type), decreasing = F))[,1])
+
+Cuisine.plot |>
+  plot_ly(x = ~Var2, y = ~Freq, type = 'bar', color  = ~Var1) |>
+  layout(barmode = 'stack',
+         xaxis = list(title = "Cuisine type"),
+         yaxis = list(title = "Frequencies"))
+
+```
+
+From the above barplots we can infer that the American cuisine has the highest frequency of data points so this data set may be **skewed** towards the **American cuisine.** This could be because the data set was collected in America where the predominant cuisine is American. The other cuisines may not have enough data to show the Diet distribution in them. 
+The American cuisine almost has an equal spread in the Diet distribution which shows that food catering to each of the Diet types is easily available in American cuisine (and therefore in America). 
+
+This next plot shows the percentages of distributions of the diets across the cuisines. This is important, because as we saw before in Plot 2, the American cuisines has disproportionate number of samples so it was hard to interpret the distributions of the diet types in the other cuisines. 
+
+<p style="text-align: center;">**PLOT 3**</p>
+```{r}
+totals <- as.data.frame(table(All.diets$Cuisine_type))
+colnames(totals) <- c("Var2","Total")
+New.Cuisine.plot <- merge(Cuisine.plot, totals)
+New.Cuisine.plot$percentage <- New.Cuisine.plot$Freq/New.Cuisine.plot$Total
+
+New.Cuisine.plot |>
+  plot_ly(x = ~Var2, y = ~percentage, type = 'bar', color  = ~Var1) |>
+  layout(barmode = 'stack',
+         xaxis = list(title = "Cuisine type"),
+         yaxis = list(title = "Percentage"))
+
+```
+The plot 3 above shows the percentage distribution of the Diets in the cuisine type. Here we can infer that Kosher cuisine has no vegan dietary options.The Kosher cuisine had only 2 Diets: Paleo and Dash.
+Chinese and British cuisines have the least amount of Mediterranean food options.
+Indian and South American cuisines have the highest Vegan food options. 
+Caribbean and British recipes have a lot of Keto options. Bread and Rice may not be used in every recipe in these cuisines.
+Dash Diet seems like the most common diet type among all the recipes as it claims to be a balanced diet that does not eliminate any food group (from it's definition.)
+Asian cuisines (like the Chinese and Japanese cuisines) offer a large variety of vegan food options as their recipes do not include milk in them. Milk products could be substituted with Soy milk which is predominantly used in these cuisines.
+
+Cuisines with a large spread of Dash and Vegan diets are the Kosher, Indian, Japanese and Asian cuisines. These cuisines include a lot of Rice and Wheat ingredients.
+
+French, Italian and Mexican cuisines show a similar spread of the 5 diets. 
+
+## Macros distribution across recipes
+
+The distribution of Macros for each recipe is shown using Box plots. The macros for the recipe is converted as a percent of the total Macro. Percentages are used instead of the absolute values as the portion size may vary for each recipe and may not present an accurate representation for each recipe. 
+
+```{r}
+
+All.diets |> mutate(Protein.percent = Protein*100/(Protein+Carbs+Fat),
+                    Fat.percent = Fat*100/(Protein+Carbs+Fat),
+                    Carbs.percent = Carbs*100/(Protein+Carbs+Fat)) |> 
+select(Diet,Recipe_name,Cuisine_type,Protein,Carbs,Fat,Protein.percent,Carbs.percent,Fat.percent) -> Percent.All.diets
+
+Percent.All.diets |>
+  gather(key = Macro.type, value = Percentage, Protein.percent:Fat.percent) -> 
+  longdata.percent
+
+All.diets |>
+  gather(key = Macro.type, value = Values, Protein:Fat) -> 
+  longdata
+
+```
+
+<p style="text-align: center;">**PLOT 4**</p>
+```{r}
+
+#plot_ly(longdata, y = ~Values, type="box", x=~Diet, color = ~Macro.type) %>% layout(boxmode = "group")
+
+plot_ly(longdata.percent, y = ~Percentage, type="box", x=~Diet, color = ~Macro.type) %>% layout(boxmode = "group")
+
+```
+
+From the plot above, the Dash diet has a large boxplot of Carbs content. However the median distribution of Carbs for vegan diet is higher than the median distribution of Carbs for the Dash diet. This means that there are higher values of Carbs in the Vegan recipes compared to the Dash diet.
+The protein content looks equivalent among the 4 diets that include meat in them i.e, Keto, Mediterranean, Dash, Paleo.
+Protein is the lowest in the Vegan diet.
+**Mediterranean and Paleo** diets look like the **most balanced diets** with similar box plots for the 3 Macros.
+
+
+## Macros
+Here we look at the distribution of the protein, fat and carbs content across the Diets. Absolute values of the sum of each Macros column is used for the analysis below.
+
+### Macros across each diet
+The distribution of the protein, fat and carbs content per Diet is seen with the help of a pie chart.
+
+```{r}
+All.diets |> group_by(Diet) |> 
+summarise(count=n(),Carbs.total=sum(Carbs),Protein.total=sum(Protein),
+Fat.total=sum(Fat),Macros.total=Carbs.total+Protein.total+Fat.total) -> Macros.plot
+Macros.df<-as.data.frame(Macros.plot)
+
+Macros.df[,"Diet"] <- as.factor(Macros.df[,"Diet"])
+Macros.df.transposed <- as.data.frame(t(Macros.df))
+colnames(Macros.df.transposed) <- Macros.df.transposed[1,]
+Macros.df.transposed <- Macros.df.transposed[-c(1,2,6),]
+
+Macros.df.transposed <- cbind(Macros.df.transposed, Type=rownames(Macros.df.transposed))
+```
+<p style="text-align: center;">**PLOT 5a**</p>
+```{r}
+plot_ly(Macros.df.transposed,  
+        type = 'pie', 
+        labels  = ~Type, 
+        textposition = 'inside',
+        values = ~dash,
+        textinfo = 'label+percent') |> layout(title="Distribution of Dash")
+```
+<p style="text-align: center;">**PLOT 5b**</p>
+```{r}
+plot_ly(Macros.df.transposed,  
+        type = 'pie', 
+        labels  = ~Type, 
+        textposition = 'inside',
+        values = ~keto,
+        textinfo = 'label+percent') |> layout(title="Distribution of Keto")
+```
+<p style="text-align: center;">**PLOT 5c**</p>
+```{r}
+plot_ly(Macros.df.transposed,  
+        type = 'pie', 
+        labels  = ~Type, 
+        textposition = 'inside',
+        values = ~mediterranean,
+        textinfo = 'label+percent') %>% layout(title="Distribution of mediterranean")
+```
+<p style="text-align: center;">**PLOT 5d**</p>
+```{r}
+ plot_ly(Macros.df.transposed,  
+        type = 'pie', 
+        labels  = ~Type, 
+        textposition = 'inside',
+        values = ~paleo,
+        textinfo = 'label+percent') %>% layout(title="Distribution of Paleo")
+```
+<p style="text-align: center;">**PLOT 5e**</p>
+```{r}
+plot_ly(Macros.df.transposed,  
+        type = 'pie', 
+        labels  = ~Type, 
+        textposition = 'inside',
+        values = ~vegan,
+        textinfo = 'label+percent') %>% layout(title="Distribution of Vegan")
+```
+
+From the above pie charts, Paleo and Mediterranean diets look balanced with an equal spread in the Macros (similar to the box plots in Plot 4). Vegan and Dash diets have high Carbs whereas the Protein content in the Vegan diet is the lowest.
+
+### Diets comparison using Macros
+
+The next pie charts are the Macro comparisons for the 5 Diet types. The absolute value of the Sum of each Macros column is used for the charts below.
+
+<p style="text-align: center;">**PLOT 6a**</p>
+```{r}
+plot_ly(Macros.df,  
+        type = 'pie', 
+        labels  = ~Diet, 
+        textposition = 'inside',
+        values = ~Carbs.total,
+        textinfo = 'label+percent') %>% layout(title="Distribution of Carbohydrates")
+```
+<p style="text-align: center;">**PLOT 6b**</p>
+```{r}
+plot_ly(Macros.df,  
+        type = 'pie', 
+        labels  = ~Diet, 
+        textposition = 'inside',
+        values = ~Fat.total,
+        textinfo = 'label+percent') %>% layout(title="Distribution of Fat")
+```
+<p style="text-align: center;">**PLOT 6c**</p>
+```{r}
+plot_ly(Macros.df,  
+        type = 'pie', 
+        labels  = ~Diet, 
+        textposition = 'inside',
+        values = ~Protein.total,
+        textinfo = 'label+percent') %>% layout(title="Distribution of Protein")
+```
+From the above pie charts, Keto diet has the highest fat content and vegan has the least fat content. 
+Keto and Mediterranean diets (with predominantly meat as its ingredients) have the highest protein content.
+
+Pie charts as well as the box plots show similar data trends.
+
+
+# Central Limit Theorem
+The Central Limit Theorem states that when repeated random samples of equal size from a population are taken, the distribution of the sample means will tend to be normally distributed as the sample size increases.
+The term "Population" is used for the entire or the original data set.
+A "sample" is taken from the "Population" as a subset of the "Population". 
+In the following analysis, 4 different sizes (Size 10,20,30,40) of samples are taken 10,000 times each. The mean of the the 10,000 samples are analysed for the 4 sizes.
+
+```{r}
+C<-All.diets$Carbs
+P<-All.diets$Protein
+Fa<-All.diets$Fat
+
+set.seed(9416)
+samples<-10000
+samplesize<-c(10,20,30,40)
+n_rows <- samples
+n_cols <- 4
+col_names <- c("Size10", "Size20", "Size30", "Size40")
+# Create an empty matrix
+empty_matrix <- matrix(ncol = n_cols, nrow = n_rows)
+xbar.df<-data.frame(empty_matrix)
+names(xbar.df)<-col_names
+cat(" The Mean of Carbs for the Population is =", round(sum(C)/nrow(All.diets),2),"|","The SD of Carbs for the Population is =", round(sd(C),2),"\n","The Mean of Protein for the Population is =", round(sum(P)/nrow(All.diets),2),"|","The SD of Protein for the Population is =", round(sd(P),2),"\n","The Mean of Fat for the Population is =",round(sum(Fa)/nrow(All.diets),2),"|","The SD of Fat for the Population is =", round(sd(Fa),2), "\n")
+# For Carbs
+cat("Samples from Carbs","\n")
+for(s in 1:n_cols){
+  for(i in 1:samples){
+    xbar.df[i,s]<-mean(sample(C,size = samplesize[s],replace = F))
+  }
+  cat("Sample Size =", samplesize[s], " Sample Mean =", round(mean(xbar.df[,s]),2),
+      " Sample SD =", round(sd(xbar.df[,s]),2), "Theoretical SD =", 
+      round(sd(C)/sqrt(samplesize[s]),2), "\n")
+}
+```
+
+<p style="text-align: center;">**PLOT 7a**</p>
+```{r}
+vline <- function(x = 0, color = "black") {
+  list(
+    type = "line", 
+    y0 = 0, 
+    y1 = 1, 
+    yref = "paper",
+    x0 = x, 
+    x1 = x, 
+    line = list(color = color,dash="dot")
+  )
+}
+c10<-plot_ly(x = ~xbar.df$Size10,type="histogram",name = "Sample Size 10") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size10))))
+c20<-plot_ly(x = ~xbar.df$Size20,type="histogram",name = "Sample Size 20") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size20))))
+c30<-plot_ly(x = ~xbar.df$Size30,type="histogram",name = "Sample Size 30") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size30))))
+c40<-plot_ly(x = ~xbar.df$Size40,type="histogram",name = "Sample Size 40") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size40))))
+c.all <- subplot(c10,c20,c30,c40,nrows = 2,titleX=T,titleY =T,margin = 0.1) |> layout(title = list(text = "Sample mean distribution for Carbs"))
+c.all
+```
+```{r}
+# For Protein
+cat("Samples from Protein","\n")
+for(s in 1:n_cols){
+  for(i in 1:samples){
+    xbar.df[i,s]<-mean(sample(P,size = samplesize[s],replace = F))
+  }
+  cat("Sample Size =", samplesize[s], " Sample Mean =", round(mean(xbar.df[,s]),2),
+      " Sample SD =", round(sd(xbar.df[,s]),2), "Theoretical SD =", 
+      round(sd(C)/sqrt(samplesize[s]),2), "\n")
+}
+```
+
+<p style="text-align: center;">**PLOT 7b**</p>
+```{r}
+p10<-plot_ly(x = ~xbar.df$Size10,type="histogram",name = "Sample Size 10")|> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size10))))
+p20<-plot_ly(x = ~xbar.df$Size20,type="histogram",name = "Sample Size 20") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size20))))
+p30<-plot_ly(x = ~xbar.df$Size30,type="histogram",name = "Sample Size 30") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size30))))
+p40<-plot_ly(x = ~xbar.df$Size40,type="histogram",name = "Sample Size 40") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size40))))
+p.all <- subplot(p10,p20,p30,p40,nrows = 2,titleX=T,titleY =T,margin = 0.1) |> layout(title = 'Sample mean distribution for Protein')
+p.all
+# For FAT
+cat("Samples from FAT","\n")
+for(s in 1:n_cols){
+  for(i in 1:samples){
+    xbar.df[i,s]<-mean(sample(Fa,size = samplesize[s],replace = F))
+  }
+  cat("Sample Size =", samplesize[s], " Sample Mean =", round(mean(xbar.df[,s]),2),
+      " Sample SD =", round(sd(xbar.df[,s]),2), "Theoretical SD =", 
+      round(sd(C)/sqrt(samplesize[s]),2), "\n")
+}
+```
+
+<p style="text-align: center;">**PLOT 7c**</p>
+```{r}
+
+f10<-plot_ly(x = ~xbar.df$Size10,type="histogram",name = "Sample Size 10") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size10))))
+f20<-plot_ly(x = ~xbar.df$Size20,type="histogram",name = "Sample Size 20") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size20))))
+f30<-plot_ly(x = ~xbar.df$Size30,type="histogram",name = "Sample Size 30") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size30))))
+f40<-plot_ly(x = ~xbar.df$Size40,type="histogram",name = "Sample Size 40") |> layout(xaxis=list(title = "Sample Mean"),yaxis=list(title="Frequency"),shapes = list(vline(mean(xbar.df$Size40))))
+f.all <- subplot(f10,f20,f30,f40,nrows = 2,titleX=T,titleY =T,margin = 0.1) |> layout(title = 'Sample mean distribution for FAT')
+f.all
+
+```
+
+The above plots show that frequency of the 10,000 sample means for all 4 sample sizes follows a normal distribution curve with maximum frequency occurring at the sample mean of the original data (population). The Standard deviation reduces as the sample size increases and gets closer to the Theoretical Standard deviation.
+
+# Sampling
+Sampling is the process of selecting a subset (called a sample) from a larger group (called a population). Samples help in drawing important inferences about the entire population and often save time as they are easier to handle compared to the entire population. The sample usually represents the total population.
+Three sampling techniques are used in this project as explained below:
+
+1. Simple Random Sampling: 
+Each data entry has an equal chance of being chosen.
+
+2. Stratified Sampling: The population is divided into groups (strata) based on a specific characteristic, and then a random sample is drawn from each group. Here, the samples are proportioned to the frequency of the Diet type. 
+
+3. Systematic Sampling: Individuals are selected at regular intervals from a list of the population.
+
+```{r}
+# srswor
+set.seed(9416)
+s1 <- srswor(1000, nrow(All.diets))
+
+sample1 <- All.diets[s1 != 0, ]
+cat("For random samples using simple random sampling without replacement, the number of samples taken from each diet is:","\n","Dash:",table(sample1$Diet)[1],"\n","Keto:",table(sample1$Diet)[2],"\n",
+"Mediterranean:",table(sample1$Diet)[3],"\n","Paleo:",table(sample1$Diet)[4],"\n",
+"Vegan:",table(sample1$Diet)[5],"\n","Total number of samples taken in this method:",sum(s1),"\n")
+
+# Systematic Sampling
+set.seed(9416)
+#
+N <- nrow(All.diets)
+n <- 1000
+k <- ceiling(N / n)
+r <- sample(k, 1)
+# select every kth item
+s2 <- seq(r, by = k, length = n)
+
+sample2 <- All.diets[s2, ]
+cat("For random samples using the Systematic sampling method, the number of samples taken from each diet is:","\n","Dash:",table(sample2$Diet)[1],"\n","Keto:",table(sample2$Diet)[2],"\n",
+"Mediterranean:",table(sample2$Diet)[3],"\n","Paleo:",table(sample2$Diet)[4],"\n",
+"Vegan:",table(sample2$Diet)[5],"\n","Total number of samples taken in this method:",length(s2),"\n")
+
+# Stratified, unequal sized strata
+set.seed(9416)
+
+freq <- table(All.diets$Diet)
+str.sizes <- round(1000 * freq / sum(freq))
+s3 <- sampling::strata(All.diets, stratanames = c("Diet"),
+               size = str.sizes, method = "srswor",
+               description = F)
+sample3 <- sampling::getdata(All.diets, s3)
+cat("For random samples using the Stratified sampling method, the number of samples taken from each diet is:","\n","Dash:",table(sample3$Diet)[1],"\n","Keto:",table(sample3$Diet)[2],"\n",
+"Mediterranean:",table(sample3$Diet)[3],"\n","Paleo:",table(sample3$Diet)[4],"\n",
+"Vegan:",table(sample3$Diet)[5],"\n","Total number of samples taken in this method:",sum(str.sizes),"\n")
+```
+## Boxplots for the samples using the sampling techniques described above are as follows:
+<p style="text-align: center;">**PLOT 8a**</p>
+```{r}
+#Plots for Samples from Random Sampling
+
+sample1 |> mutate(Protein.percent = Protein*100/(Protein+Carbs+Fat),
+                    Fat.percent = Fat*100/(Protein+Carbs+Fat),
+                    Carbs.percent = Carbs*100/(Protein+Carbs+Fat)) |> 
+  select(Diet,Recipe_name,Cuisine_type,Protein,Carbs,Fat,Protein.percent,Carbs.percent,Fat.percent) -> Percent.sample1
+
+Percent.sample1 |>
+  gather(key = Macro.type, value = Percentage, Protein.percent:Fat.percent) -> 
+  sample1.longdata.percent
+
+plot_ly(sample1.longdata.percent, y = ~Percentage, type="box", x=~Diet, color = ~Macro.type) |> layout(boxmode = "group",title = "Box plots for Samples from Random Sampling" )
+```
+
+<p style="text-align: center;">**PLOT 8b**</p>
+```{r}
+#Plots for Samples from Systematic Sampling
+
+sample2 |> mutate(Protein.percent = Protein*100/(Protein+Carbs+Fat),
+                    Fat.percent = Fat*100/(Protein+Carbs+Fat),
+                    Carbs.percent = Carbs*100/(Protein+Carbs+Fat)) |> 
+  select(Diet,Recipe_name,Cuisine_type,Protein,Carbs,Fat,Protein.percent,Carbs.percent,Fat.percent) -> Percent.sample2
+
+Percent.sample2 |>
+  gather(key = Macro.type, value = Percentage, Protein.percent:Fat.percent) -> 
+  sample2.longdata.percent
+
+plot_ly(sample2.longdata.percent, y = ~Percentage, type="box", x=~Diet, color = ~Macro.type) |> layout(boxmode = "group",title = "Box plots for Samples from Systematic Sampling" )
+```
+
+<p style="text-align: center;">**PLOT 8c**</p>
+```{r}
+#Plots for Samples from Stratified, unequal sized strata samping
+
+sample3 |> mutate(Protein.percent = Protein*100/(Protein+Carbs+Fat),
+                    Fat.percent = Fat*100/(Protein+Carbs+Fat),
+                    Carbs.percent = Carbs*100/(Protein+Carbs+Fat)) |> 
+  select(Diet,Recipe_name,Cuisine_type,Protein,Carbs,Fat,Protein.percent,Carbs.percent,Fat.percent) -> Percent.sample3
+
+Percent.sample2 |>
+  gather(key = Macro.type, value = Percentage, Protein.percent:Fat.percent) -> 
+  sample3.longdata.percent
+
+plot_ly(sample3.longdata.percent, y = ~Percentage, type="box", x=~Diet, color = ~Macro.type) |> layout(boxmode = "group",title = "Box plots for Samples from Stratified Sampling" )
+
+```
+
+The above boxplots use samples from the original data as data points. The plots show similar trends as the original data (total population) in the macros distribution across Diets. Similar to the boxplot for population (Plot 4), the Mediterranean and Paleo diets look the most balanced with similar box plots for the 3 Macros.
+The median distribution of Carbs for Vegan diet is higher than the median distribution of Carbs for Dash diet.
+
+# Conclusion
+
+The box plots (Plot 4 and 8) and the pie charts (Plot 5 and 6) both show that the Mediterranean and the Paleo diets are much more balanced compared to the other diets. There is no spike in the Macros in these diets. Paleo diet however, excludes some food groups entirely like dairy products, legumes, sugars and processed foods. 
+
+Mediterranean and the Paleo diets are available in all the cuisines listed in the data with the majority found in Eastern European and Mediterranean Cuisines. 
+
+
+
